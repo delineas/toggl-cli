@@ -49,6 +49,9 @@ import six
 from six.moves import urllib
 from six.moves import configparser as ConfigParser
 
+reload(sys)
+sys.setdefaultencoding('utf8')
+
 TOGGL_URL = "https://www.toggl.com/api/v8"
 VERBOSE = False # verbose output?
 Parser = None   # OptionParser initialized by main()
@@ -258,6 +261,15 @@ class DateAndTime(object):
         return self.tz.localize(
             datetime.datetime.combine( datetime.date.today(), datetime.time.min) - 
             datetime.timedelta(days=1) # subtract one day from today at midnight
+        )
+
+    def start_2days_before(self):
+        """
+        Returns 00:00:00 yesterday as a localized datetime object.
+        """
+        return self.tz.localize(
+            datetime.datetime.combine( datetime.date.today(), datetime.time.min) -
+            datetime.timedelta(days=3) # subtract one day from today at midnight
         )
 
 #----------------------------------------------------------------------------
@@ -844,7 +856,7 @@ class TimeEntryList(six.Iterator):
         """
         # Fetch time entries from 00:00:00 yesterday to 23:59:59 today.
         url = "/time_entries?start_date={}&end_date={}".format(
-            urllib.parse.quote(DateAndTime().start_of_yesterday().isoformat('T')), \
+            urllib.parse.quote(DateAndTime().start_2days_before().isoformat('T')), \
             urllib.parse.quote(DateAndTime().last_minute_today().isoformat('T')))
         Logger.debug(url)
         entries = json.loads( toggl(url, 'get') )
@@ -879,7 +891,7 @@ class TimeEntryList(six.Iterator):
             s += date + "\n"
             duration = 0
             for entry in days[date]:
-                s += str(entry) + "\n"
+                s += str(entry) + " (Init: {})\n".format(DateAndTime().parse_iso_str(entry.get('start')).strftime("%H:%M"))
                 duration += entry.normalized_duration()
             s += "  ({})\n".format(DateAndTime().elapsed_time(int(duration)))
         return s.rstrip() # strip trailing \n
